@@ -1,5 +1,6 @@
 ﻿using System.Windows;
 using Bluegrams.Application;
+using ModernWpf;
 using TweetNotify.Properties;
 
 namespace TweetNotify
@@ -17,6 +18,8 @@ namespace TweetNotify
 
             // Continue with the application startup
             base.OnStartup(e);
+
+            ThemeManager.Current.ApplicationTheme = Settings.Default.Theme == "Dark" ? ApplicationTheme.Dark : ApplicationTheme.Light;
         }
     }
 }

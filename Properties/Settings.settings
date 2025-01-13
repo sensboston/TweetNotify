@@ -3,7 +3,7 @@
   <Profiles />
   <Settings>
     <Setting Name="UpdateTime" Type="System.Int32" Scope="User">
-      <Value Profile="(Default)">5</Value>
+      <Value Profile="(Default)">10</Value>
     </Setting>
     <Setting Name="TwitterAccounts" Type="System.String" Scope="User">
       <Value Profile="(Default)">sensboston:View/Sound</Value>
@@ -16,6 +16,12 @@
     </Setting>
     <Setting Name="Volume" Type="System.Int32" Scope="User">
       <Value Profile="(Default)">100</Value>
+    </Setting>
+    <Setting Name="CookiesFileName" Type="System.String" Scope="User">
+      <Value Profile="(Default)">C:\Users\Sergey\Downloads\download.json</Value>
+    </Setting>
+    <Setting Name="Theme" Type="System.String" Scope="User">
+      <Value Profile="(Default)">Dark</Value>
     </Setting>
   </Settings>
 </SettingsFile>
