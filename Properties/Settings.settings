@@ -1,0 +1,21 @@
+﻿<?xml version='1.0' encoding='utf-8'?>
+<SettingsFile xmlns="http://schemas.microsoft.com/VisualStudio/2004/01/settings" CurrentProfile="(Default)" GeneratedClassNamespace="TweetNotify.Properties" GeneratedClassName="Settings">
+  <Profiles />
+  <Settings>
+    <Setting Name="UpdateTime" Type="System.Int32" Scope="User">
+      <Value Profile="(Default)">5</Value>
+    </Setting>
+    <Setting Name="TwitterAccounts" Type="System.String" Scope="User">
+      <Value Profile="(Default)">sensboston:View/Sound</Value>
+    </Setting>
+    <Setting Name="BaseUrl" Type="System.String" Scope="User">
+      <Value Profile="(Default)">https://syndication.twitter.com/srv/timeline-profile/screen-name/{account}</Value>
+    </Setting>
+    <Setting Name="Voice" Type="System.String" Scope="User">
+      <Value Profile="(Default)">Microsoft David Desktop</Value>
+    </Setting>
+    <Setting Name="Volume" Type="System.Int32" Scope="User">
+      <Value Profile="(Default)">100</Value>
+    </Setting>
+  </Settings>
+</SettingsFile>
