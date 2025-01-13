@@ -9,13 +9,15 @@ using System.Windows;
 using System.Windows.Input;
 using System.Windows.Threading;
 using System.ComponentModel;
+using System.Threading;
+using System.Configuration;
+using System.Linq;
+using System.Windows.Controls;
 
 using Newtonsoft.Json;
 using NullSoftware.ToolKit;
 using PuppeteerSharp;
 using TweetNotify.Properties;
-using System.Threading;
-using System.Configuration;
 using ModernWpf;
 
 namespace TweetNotify
@@ -23,12 +25,12 @@ namespace TweetNotify
     public partial class MainWindow : Window
     {
         private IBrowser browser;
-        private DispatcherTimer timer;
-        private List<(string handle, string mode)> accounts;
-        private Dictionary<string, List<string>> seenTweetIdsByUser = new Dictionary<string, List<string>>();
-        SpeechSynthesizer synthesizer = new SpeechSynthesizer();
-        CancellationTokenSource cancellationTokenSource = new CancellationTokenSource();
-        CancellationToken token;
+        private readonly DispatcherTimer timer = new DispatcherTimer();
+        private List<(string handle, string mode)> accounts = new List<(string handle, string mode)>();
+        private readonly Dictionary<string, List<string>> seenTweetIdsByUser = new Dictionary<string, List<string>>();
+        private readonly SpeechSynthesizer synthesizer = new SpeechSynthesizer();
+        private readonly CancellationTokenSource cancellationTokenSource = new CancellationTokenSource();
+        private CancellationToken token;
 
         public MainWindow()
         {
@@ -38,6 +40,11 @@ namespace TweetNotify
 
         #region UI handling 
 
+        /// <summary>
+        /// Show/hime main window
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
         private void TrayIcon_ToggleVisibility(object sender, MouseButtonEventArgs e)
         {
             if (e.ChangedButton == MouseButton.Left)
@@ -51,26 +58,59 @@ namespace TweetNotify
             }
         }
 
+        /// <summary>
+        /// Shutdown the app
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
         private async void TrayIcon_Exit(object sender, RoutedEventArgs e)
         {
-            timer.Stop();
-            cancellationTokenSource.Cancel();
-            cancellationTokenSource.Dispose();
+            timer?.Stop();
+            cancellationTokenSource?.Cancel();
+            cancellationTokenSource?.Dispose();
             await ClosePuppeteerAsync();
+            KillHeadlessChromeInstances();
             Application.Current.Shutdown();
         }
 
+        /// <summary>
+        /// Kill all headless Chrome instances related to Puppeteer.
+        /// </summary>
+        private void KillHeadlessChromeInstances()
+        {
+            string puppeteerChromePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory,
+                "ChromiumBrowser", "Chrome", "Win64-130.0.6723.69", "chrome-win64", "chrome.exe");
+
+            try
+            {
+                var chromeProcesses = Process.GetProcessesByName("chrome");
+                foreach (var process in chromeProcesses)
+                {
+                    try
+                    {
+                        // Match process path to Puppeteer Chrome path
+                        if (process.MainModule != null && string.Equals(process.MainModule.FileName, puppeteerChromePath, StringComparison.OrdinalIgnoreCase))
+                        {
+                            process.Kill();
+                        }
+                    }
+                    catch { }
+                }
+            }
+            catch { }
+        }
+
+        /// <summary>
+        /// Add new account
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
         private void AccountsList_MouseDoubleClick(object sender, MouseButtonEventArgs e)
         {
-/*            var dialog = new Microsoft.Win32.InputDialog
-            {
-                Title = "Add New Account",
-                Prompt = "Enter Twitter Handle:"
-            };
-
+            var dialog = new InputDialog("Enter X/Twitter Handle:", "Add new account");
             if (dialog.ShowDialog() == true)
             {
-                var handle = dialog.Text.Trim();
+                string handle = dialog.Result;
                 if (!string.IsNullOrWhiteSpace(handle))
                 {
                     accounts.Add((handle, "Disabled"));
@@ -78,8 +118,28 @@ namespace TweetNotify
                     displayList.Add(new AccountDisplay { TwitterHandle = $"@{handle}", NotificationMode = "Disabled" });
                     AccountsList.ItemsSource = null;
                     AccountsList.ItemsSource = displayList;
+                    SaveAccountsToSettings();
                 }
-            } */
+            }
+        }
+
+        private void AccountModeComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (sender is ComboBox comboBox && comboBox.DataContext is AccountDisplay selectedAccount)
+            {
+                // Get the selected mode from the ComboBox
+                string selectedMode = (comboBox.SelectedValue as string) ?? "Disabled";
+
+                // Update the corresponding account's mode in the accounts list
+                var accountIndex = accounts.FindIndex(a => $"@{a.handle}" == selectedAccount.TwitterHandle);
+                if (accountIndex >= 0)
+                {
+                    accounts[accountIndex] = (accounts[accountIndex].handle, selectedMode);
+                }
+
+                // Save the updated accounts list to settings
+                SaveAccountsToSettings();
+            }
         }
 
         private void DeleteAccount_Click(object sender, RoutedEventArgs e)
@@ -92,7 +152,15 @@ namespace TweetNotify
                 displayList.Remove(selectedAccount);
                 AccountsList.ItemsSource = null;
                 AccountsList.ItemsSource = displayList;
+                SaveAccountsToSettings();
             }
+        }
+
+        private void SaveAccountsToSettings()
+        {
+            var serializedAccounts = string.Join(",", accounts.Select(a => $"{a.handle}:{a.mode}"));
+            Settings.Default.TwitterAccounts = serializedAccounts;
+            Settings.Default.Save();
         }
 
         private void BrowseCookieFile_Click(object sender, RoutedEventArgs e)
@@ -105,17 +173,12 @@ namespace TweetNotify
             };
 
             if (dialog.ShowDialog() == true)
-            {
-                var fileName = System.IO.Path.GetFileName(dialog.FileName);
-                CookieFileTextBlock.Text = fileName;
                 Settings.Default.CookiesFileName = dialog.FileName;
-                Settings.Default.Save();
-            }
         }
 
         private void ShowNewTweetNotification(string account, string text, string mode)
         {
-            Debug.WriteLine($"[NOTIFICATION] New tweet from {account}: {text}");
+            Debug.WriteLine($"[NOTIFICATION] New tweet from {account} with mode {mode}: {text}");
 
             if (mode.IndexOf("View", StringComparison.OrdinalIgnoreCase) >= 0)
             {
@@ -132,6 +195,62 @@ namespace TweetNotify
         #endregion
 
         #region Initialization
+
+        private async void InitializeAsync()
+        {
+            Hide();
+
+            // Register settings changed handler
+            Settings.Default.Save();
+            Settings.Default.SettingChanging += AppSettingChanging;
+            CookiesFileName.Text = Path.GetFileName(Settings.Default.CookiesFileName);
+
+            // Create cancellation token used for App.Shutdown
+            token = cancellationTokenSource.Token;
+            
+            // Populate voices into VoiceComboBox
+            foreach (var voice in synthesizer.GetInstalledVoices())
+                VoiceComboBox.Items.Add(voice.VoiceInfo.Name);
+            VoiceComboBox.SelectedValue = Settings.Default.Voice;
+
+            // Setup standard Windows speech synthesizer
+            synthesizer.SetOutputToDefaultAudioDevice();
+            synthesizer.SelectVoice(Settings.Default.Voice);
+            synthesizer.Volume = Settings.Default.Volume;
+
+            // Setup query timer
+            timer.Interval = TimeSpan.FromSeconds(Settings.Default.UpdateTime);
+            timer.Tick += async (_, __) => await FetchAllFeedsAsync(accounts, false);
+
+            // Parse X/Twitter accounts
+            accounts = ParseAccounts(Settings.Default.TwitterAccounts);
+
+            // Initialize list for UI
+            var displayList = new List<AccountDisplay>();
+            foreach (var (handle, mode) in accounts)
+            {
+                string fullHandle = "@" + handle;
+                displayList.Add(new AccountDisplay
+                {
+                    TwitterHandle = fullHandle,
+                    NotificationMode = mode,
+                });
+                seenTweetIdsByUser[fullHandle] = new List<string>();
+            }
+            AccountsList.ItemsSource = displayList;
+
+            // Hide window instead of closing
+            Closing += (object sender, CancelEventArgs e) => { e.Cancel = true; WindowState = WindowState.Minimized; };
+
+            // Setup Puppeteer
+            await SetupPuppeteerAsync();
+
+            // Baseline fetch (to avoid notifications on old tweets)
+            await FetchAllFeedsAsync(accounts, true);
+
+            // Start timer
+            timer.Start();
+        }
 
         private void AppSettingChanging(object sender, SettingChangingEventArgs e)
         {
@@ -152,63 +271,12 @@ namespace TweetNotify
                 case "Theme":
                     ThemeManager.Current.ApplicationTheme = (string)e.NewValue == "Dark" ? ApplicationTheme.Dark : ApplicationTheme.Light;
                     break;
+
+                case "CookiesFileName":
+                    CookiesFileName.Text = Path.GetFileName((string)e.NewValue);
+                    break;
             }
             Settings.Default.Save();
-        }
-
-        private async void InitializeAsync()
-        {
-            // Hide main window first
-            Hide();
-
-            // Register settings changed handler
-            Settings.Default.Save();
-            Settings.Default.SettingChanging += AppSettingChanging;
-
-            // Create cancellation token used for App.Shutdown
-            token = cancellationTokenSource.Token;
-            
-            // Populate voices into VoiceComboBox
-            foreach (var voice in synthesizer.GetInstalledVoices())
-                VoiceComboBox.Items.Add(voice.VoiceInfo.Name);
-            VoiceComboBox.SelectedValue = Settings.Default.Voice;
-
-            // Setup standard Windows speech synthesizer
-            synthesizer.SetOutputToDefaultAudioDevice();
-            synthesizer.SelectVoice(Settings.Default.Voice);
-            synthesizer.Volume = Settings.Default.Volume;
-
-            // Parse X/Twitter accounts
-            accounts = ParseAccounts(Settings.Default.TwitterAccounts);
-
-            // Initialize list for UI
-            var displayList = new List<AccountDisplay>();
-            foreach (var (handle, mode) in accounts)
-            {
-                string fullHandle = "@" + handle;
-                displayList.Add(new AccountDisplay
-                {
-                    TwitterHandle = fullHandle,
-                    NotificationMode = mode,
-                });
-                seenTweetIdsByUser[fullHandle] = new List<string>();
-            }
-            AccountsList.ItemsSource = displayList;
-
-            // Hide window instead of closing
-            Closing += (object sender, CancelEventArgs e) => { e.Cancel = true; Hide(); };
-
-            // Setup Puppeteer
-            await SetupPuppeteerAsync();
-
-            // Baseline fetch (to avoid notifications on old tweets)
-            await FetchAllFeedsAsync(accounts, true);
-
-            // Setup & start query timer
-            timer = new DispatcherTimer();
-            timer.Interval = TimeSpan.FromSeconds(Settings.Default.UpdateTime);
-            timer.Tick += async (_, __) => await FetchAllFeedsAsync(accounts, false);
-            timer.Start();
         }
 
         private List<(string handle, string mode)> ParseAccounts(string raw)
@@ -263,7 +331,8 @@ namespace TweetNotify
         {
             if (browser != null)
             {
-                foreach (var (handle, mode) in accounts)
+                var accountsClone = new List<(string handle, string mode)>(accounts);
+                foreach (var (handle, mode) in accountsClone)
                 {
                     if (token.IsCancellationRequested) return; 
 
@@ -294,6 +363,7 @@ namespace TweetNotify
                         try
                         {
                             parsedTweets = ExtractTweetsFromPage(content);
+                            Debug.WriteLine($"Received {parsedTweets.Count} tweets");
                         }
                         catch (Exception ex)
                         {
@@ -351,13 +421,7 @@ namespace TweetNotify
             {
                 string jsonContent = File.ReadAllText(cookiesJsonFile);
 
-                var rawCookies = JsonConvert.DeserializeObject<List<RawCookie>>(jsonContent);
-
-                if (rawCookies == null)
-                {
-                    throw new InvalidOperationException("Failed to parse cookies from JSON.");
-                }
-
+                var rawCookies = JsonConvert.DeserializeObject<List<RawCookie>>(jsonContent) ?? throw new InvalidOperationException("Failed to parse cookies from JSON.");
                 foreach (var rc in rawCookies)
                 {
                     cookies.Add(new CookieParam
@@ -395,7 +459,7 @@ namespace TweetNotify
             var marker = $"<script id=\"{scriptId}\" type=\"application/json\">";
             var startIndex = pageContent.IndexOf(marker);
 
-            string jsonContent = string.Empty;
+            string jsonContent;
 
             if (startIndex > 0)
             {
