@@ -19,7 +19,6 @@ using NullSoftware.ToolKit;
 using PuppeteerSharp;
 using ModernWpf;
 using TweetNotify.Properties;
-using System.Linq.Expressions;
 
 namespace TweetNotify
 {
