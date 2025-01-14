@@ -346,7 +346,9 @@ namespace TweetNotify
                 page = await browser.NewPageAsync();
 
                 // Set UserAgent and headers
-                await page.SetUserAgentAsync("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.212 Safari/537.36");
+                //string userAgent = @"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; Googlebot/2.1; +http://www.google.com/bot.html) Chrome/W.X.Y.Z Safari/537.36";
+                string userAgent = @"Mozilla /5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.212 Safari/537.36";
+                await page.SetUserAgentAsync(userAgent);
                 var headers = new Dictionary<string, string> { { "Accept", "application/json, text/plain, */*" } };
                 await page.SetExtraHttpHeadersAsync(headers);
 
