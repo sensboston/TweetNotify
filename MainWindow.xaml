@@ -6,12 +6,10 @@
         xmlns:ui="http://schemas.modernwpf.com/2019"
         ui:WindowHelper.UseModernWindowStyle="True"
         ShowInTaskbar="False"
-        Visibility="Hidden"
         WindowStyle="SingleBorderWindow"
         ResizeMode="NoResize"
-        Title="TweetNotify" 
-        Height="600" 
-        Width="390"
+        Title="Tweet Notify" 
+        Height="600" Width="390"
         Left="{Binding Source={x:Static properties:Settings.Default}, Path=Left, Mode=TwoWay}"
         Top="{Binding Source={x:Static properties:Settings.Default}, Path=Top, Mode=TwoWay}"
         Icon="/App.ico">
@@ -97,6 +95,12 @@
                                 <sys:Int32>20</sys:Int32>
                                 <sys:Int32>25</sys:Int32>
                                 <sys:Int32>30</sys:Int32>
+                                <sys:Int32>35</sys:Int32>
+                                <sys:Int32>40</sys:Int32>
+                                <sys:Int32>45</sys:Int32>
+                                <sys:Int32>50</sys:Int32>
+                                <sys:Int32>55</sys:Int32>
+                                <sys:Int32>60</sys:Int32>
                             </x:Array>
                         </ComboBox.ItemsSource>
                     </ComboBox>

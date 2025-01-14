@@ -36,6 +36,11 @@ namespace TweetNotify
 
         public MainWindow()
         {
+            Visibility = Visibility.Hidden;
+            // For the firts run, locate window in the screen center
+            if (Settings.Default.Left < 0 && Settings.Default.Top < 0)
+                WindowStartupLocation = WindowStartupLocation.CenterScreen;
+
             InitializeComponent();
             InitializeAsync();
         }

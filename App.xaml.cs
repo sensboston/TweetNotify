@@ -19,6 +19,7 @@ namespace TweetNotify
             // Continue with the application startup
             base.OnStartup(e);
 
+            // Set app theme
             ThemeManager.Current.ApplicationTheme = Settings.Default.Theme == "Dark" ? ApplicationTheme.Dark : ApplicationTheme.Light;
         }
     }
