@@ -1,6 +1,6 @@
 ﻿using System;
+using System.Linq;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Speech.Synthesis;
 using System.Text.Json;
@@ -11,20 +11,23 @@ using System.Windows.Threading;
 using System.ComponentModel;
 using System.Threading;
 using System.Configuration;
-using System.Linq;
 using System.Windows.Controls;
+using System.Diagnostics;
 
 using Newtonsoft.Json;
 using NullSoftware.ToolKit;
 using PuppeteerSharp;
-using TweetNotify.Properties;
 using ModernWpf;
+using TweetNotify.Properties;
+using System.Linq.Expressions;
 
 namespace TweetNotify
 {
     public partial class MainWindow : Window
     {
         private IBrowser browser;
+        private IPage page;
+
         private readonly DispatcherTimer timer = new DispatcherTimer();
         private List<(string handle, string mode)> accounts = new List<(string handle, string mode)>();
         private readonly Dictionary<string, List<string>> seenTweetIdsByUser = new Dictionary<string, List<string>>();
@@ -105,7 +108,7 @@ namespace TweetNotify
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private void AccountsList_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+        private async void AccountsList_AddNewAccount(object sender, MouseButtonEventArgs e)
         {
             var dialog = new InputDialog("Enter X/Twitter Handle:", "Add new account");
             if (dialog.ShowDialog() == true)
@@ -113,12 +116,18 @@ namespace TweetNotify
                 string handle = dialog.Result;
                 if (!string.IsNullOrWhiteSpace(handle))
                 {
+                    timer.Stop();
+
                     accounts.Add((handle, "Disabled"));
                     var displayList = AccountsList.ItemsSource as List<AccountDisplay>;
                     displayList.Add(new AccountDisplay { TwitterHandle = $"@{handle}", NotificationMode = "Disabled" });
                     AccountsList.ItemsSource = null;
                     AccountsList.ItemsSource = displayList;
                     SaveAccountsToSettings();
+
+                    // Baseline refetch
+                    await FetchAllFeedsAsync(accounts, true);
+                    timer.Start();
                 }
             }
         }
@@ -179,6 +188,7 @@ namespace TweetNotify
         private void ShowNewTweetNotification(string account, string text, string mode)
         {
             Debug.WriteLine($"[NOTIFICATION] New tweet from {account} with mode {mode}: {text}");
+            account = account.Replace("@", "");
 
             if (mode.IndexOf("View", StringComparison.OrdinalIgnoreCase) >= 0)
             {
@@ -198,6 +208,7 @@ namespace TweetNotify
 
         private async void InitializeAsync()
         {
+            // Hide main window
             Hide();
 
             // Register settings changed handler
@@ -220,7 +231,14 @@ namespace TweetNotify
 
             // Setup query timer
             timer.Interval = TimeSpan.FromSeconds(Settings.Default.UpdateTime);
-            timer.Tick += async (_, __) => await FetchAllFeedsAsync(accounts, false);
+
+            // We should stop timer during fetching accounts
+            timer.Tick += async (_, __) =>
+            {
+                timer.Stop();
+                await FetchAllFeedsAsync(accounts, false);
+                timer.Start();
+            };
 
             // Parse X/Twitter accounts
             accounts = ParseAccounts(Settings.Default.TwitterAccounts);
@@ -240,7 +258,7 @@ namespace TweetNotify
             AccountsList.ItemsSource = displayList;
 
             // Hide window instead of closing
-            Closing += (object sender, CancelEventArgs e) => { e.Cancel = true; WindowState = WindowState.Minimized; };
+            Closing += (object sender, CancelEventArgs e) => { e.Cancel = true; Hide();};
 
             // Setup Puppeteer
             await SetupPuppeteerAsync();
@@ -305,6 +323,7 @@ namespace TweetNotify
         {
             try
             {
+                // Create headless Chromium browser
                 var fetcherOptions = new BrowserFetcherOptions { Path = "ChromiumBrowser" };
                 var fetcher = new BrowserFetcher(fetcherOptions);
 
@@ -312,11 +331,24 @@ namespace TweetNotify
                 LaunchOptions launchOptions = new LaunchOptions
                 {
                     Browser = SupportedBrowser.Chromium,
+                    //Timeout = 30000,
                     Headless = true,
                     ExecutablePath = revisionInfo.GetExecutablePath(),
                     Args = new[] { "--no-sandbox" }
                 };
                 browser = await Puppeteer.LaunchAsync(launchOptions);
+
+                // Create browser page
+                page = await browser.NewPageAsync();
+
+                // Set UserAgent and headers
+                await page.SetUserAgentAsync("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.212 Safari/537.36");
+                var headers = new Dictionary<string, string> { { "Accept", "application/json, text/plain, */*" } };
+                await page.SetExtraHttpHeadersAsync(headers);
+
+                // Set page cookies
+                var cookies = GetCookies(Settings.Default.CookiesFileName);
+                await page.SetCookieAsync(cookies);
             }
             catch (Exception ex)
             {
@@ -329,65 +361,52 @@ namespace TweetNotify
 
         private async Task FetchAllFeedsAsync(List<(string handle, string mode)> accounts, bool isBaseline)
         {
-            if (browser != null)
+            if (page != null)
             {
                 var accountsClone = new List<(string handle, string mode)>(accounts);
                 foreach (var (handle, mode) in accountsClone)
                 {
-                    if (token.IsCancellationRequested) return; 
+                    if (token.IsCancellationRequested) return;
 
                     var fullHandle = "@" + handle;
                     if (mode.Equals("Disabled", StringComparison.OrdinalIgnoreCase)) continue;
 
-                    IPage page = null;
+                    var url = Settings.Default.BaseUrl.Replace("{account}", handle);
+
                     try
                     {
-                        var url = Settings.Default.BaseUrl.Replace("{account}", handle);
-
-                        page = await browser.NewPageAsync();
-                        page.DefaultNavigationTimeout = 30000;
-                        page.DefaultTimeout = 30000;
-
-                        await page.SetUserAgentAsync("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.212 Safari/537.36");
-                        var headers = new Dictionary<string, string> { { "Accept", "application/json, text/plain, */*" } };
-                        await page.SetExtraHttpHeadersAsync(headers);
-
-                        var cookies = GetCookies(Settings.Default.CookiesFileName);
-                        await page.SetCookieAsync(cookies);
-
-                        await page.GoToAsync(url, WaitUntilNavigation.Networkidle0);
+                        // Go to https://syndication.twitter.com/srv/timeline-profile/{user_name}
+                        await page.GoToAsync(url);
+                        await page.WaitForNavigationAsync(new NavigationOptions() { Timeout = Settings.Default.Timeout * 1000 });
 
                         var content = await page.GetContentAsync();
 
-                        List<TweetEntry> parsedTweets;
-                        try
+                        if (!string.IsNullOrEmpty(content))
                         {
-                            parsedTweets = ExtractTweetsFromPage(content);
-                            Debug.WriteLine($"Received {parsedTweets.Count} tweets");
-                        }
-                        catch (Exception ex)
-                        {
-                            Debug.WriteLine($"Error parsing tweets: {ex.Message}");
-                            return;
-                        }
+                            var parsedTweets = ExtractTweetsFromPage(content);
+                            Debug.WriteLine($"Received {parsedTweets.Count} tweets from account {handle}");
 
-                        var newTweetIds = new List<string>();
+                            var newTweetIds = new List<string>();
 
-                        foreach (var tweet in parsedTweets)
-                        {
-                            if (token.IsCancellationRequested) return;
-
-                            var tweetId = tweet.EntryId;
-
-                            if (!string.IsNullOrEmpty(tweetId))
+                            foreach (var tweet in parsedTweets)
                             {
-                                if (!seenTweetIdsByUser[fullHandle].Contains(tweetId))
+                                if (token.IsCancellationRequested) return;
+
+                                var tweetId = tweet.EntryId;
+
+                                if (!string.IsNullOrEmpty(tweetId))
                                 {
-                                    seenTweetIdsByUser[fullHandle].Add(tweetId);
-                                    if (!isBaseline)
+                                    if (seenTweetIdsByUser.ContainsKey(fullHandle))
                                     {
-                                        newTweetIds.Add(tweetId);
-                                        ShowNewTweetNotification(fullHandle, tweet.FullText, mode);
+                                        if (!seenTweetIdsByUser[fullHandle].Contains(tweetId))
+                                        {
+                                            seenTweetIdsByUser[fullHandle].Add(tweetId);
+                                            if (!isBaseline)
+                                            {
+                                                newTweetIds.Add(tweetId);
+                                                ShowNewTweetNotification(fullHandle, tweet.FullText, mode);
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -395,20 +414,7 @@ namespace TweetNotify
                     }
                     catch (Exception ex)
                     {
-                        Debug.WriteLine($"Error fetching timeline for {fullHandle}: {ex.Message}");
-                    }
-                    finally
-                    {
-                        if (page != null)
-                        {
-                            try
-                            {
-                                await page.CloseAsync();
-                                await page.DisposeAsync();
-                                page = null;
-                            }
-                            catch { }
-                        }
+                        Debug.WriteLine($"Error fetching tweets: {ex.Message}");
                     }
                 }
             }
@@ -510,7 +516,6 @@ namespace TweetNotify
             }
             return tweets;
         }
-
 
         private async Task ClosePuppeteerAsync()
         {

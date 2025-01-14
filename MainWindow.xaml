@@ -36,7 +36,7 @@
         </Grid.RowDefinitions>
 
         <Border Grid.Row="0" BorderBrush="{DynamicResource SystemControlPageTextBaseHighBrush}" CornerRadius="10" BorderThickness="1" Padding="5" Margin="5">
-            <ListView x:Name="AccountsList" FontSize="18" Margin="0 5 0 0" MouseDoubleClick="AccountsList_MouseDoubleClick" ToolTip="Double click to add new account">
+            <ListView x:Name="AccountsList" FontSize="18" Margin="0 5 0 0" MouseDoubleClick="AccountsList_AddNewAccount" ToolTip="Double click to add new account">
                 <ListView.ItemTemplate>
                     <DataTemplate>
                         <Border BorderThickness="0,0,0,1" BorderBrush="#444">
