@@ -3,13 +3,11 @@ using System.Linq;
 using System.Collections.Generic;
 using System.IO;
 using System.Speech.Synthesis;
-using System.Text.Json;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Threading;
 using System.ComponentModel;
-using System.Threading;
 using System.Configuration;
 using System.Windows.Controls;
 using System.Diagnostics;
@@ -18,6 +16,8 @@ using Newtonsoft.Json;
 using NullSoftware.ToolKit;
 using PuppeteerSharp;
 using ModernWpf;
+using HtmlAgilityPack;
+
 using TweetNotify.Properties;
 
 namespace TweetNotify
@@ -28,20 +28,21 @@ namespace TweetNotify
         private IPage page;
 
         private readonly DispatcherTimer timer = new DispatcherTimer();
-        private List<(string handle, string mode)> accounts = new List<(string handle, string mode)>();
-        private readonly Dictionary<string, List<string>> seenTweetIdsByUser = new Dictionary<string, List<string>>();
+        private List<(string handle, string mode)> accounts = new List<(string account, string mode)>();
         private readonly SpeechSynthesizer synthesizer = new SpeechSynthesizer();
-        private readonly CancellationTokenSource cancellationTokenSource = new CancellationTokenSource();
-        private CancellationToken token;
+        private Dictionary<string, (string Name, string Account, string Text)> seenTweet = 
+            new Dictionary<string, (string Name, string Account, string Text)>();
 
         public MainWindow()
         {
             Visibility = Visibility.Hidden;
+
             // For the firts run, locate window in the screen center
             if (Settings.Default.Left < 0 && Settings.Default.Top < 0)
                 WindowStartupLocation = WindowStartupLocation.CenterScreen;
 
             InitializeComponent();
+
             InitializeAsync();
         }
 
@@ -73,8 +74,6 @@ namespace TweetNotify
         private async void TrayIcon_Exit(object sender, RoutedEventArgs e)
         {
             timer?.Stop();
-            cancellationTokenSource?.Cancel();
-            cancellationTokenSource?.Dispose();
             await ClosePuppeteerAsync();
             KillHeadlessChromeInstances();
             Application.Current.Shutdown();
@@ -85,7 +84,7 @@ namespace TweetNotify
         /// </summary>
         private void KillHeadlessChromeInstances()
         {
-            string puppeteerChromePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory,
+            var puppeteerChromePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory,
                 "ChromiumBrowser", "Chrome", "Win64-130.0.6723.69", "chrome-win64", "chrome.exe");
 
             try
@@ -117,7 +116,7 @@ namespace TweetNotify
             var dialog = new InputDialog("Enter X/Twitter Handle:", "Add new account");
             if (dialog.ShowDialog() == true)
             {
-                string handle = dialog.Result;
+                var handle = dialog.Result;
                 if (!string.IsNullOrWhiteSpace(handle))
                 {
                     timer.Stop();
@@ -129,8 +128,8 @@ namespace TweetNotify
                     AccountsList.ItemsSource = displayList;
                     SaveAccountsToSettings();
 
-                    // Baseline refetch
-                    await FetchAllFeedsAsync(accounts, true);
+                    // Refetch previous tweets
+                    await ProcessNewTweetsAsync(accounts, true);
                     timer.Start();
                 }
             }
@@ -202,7 +201,7 @@ namespace TweetNotify
 
             if (mode.IndexOf("Sound", StringComparison.OrdinalIgnoreCase) >= 0)
             {
-                synthesizer.SpeakAsync($"{account} posted new tweet: {text}");
+                synthesizer.SpeakAsync($"{account} posted new tweet");
             }
         }
 
@@ -220,9 +219,6 @@ namespace TweetNotify
             Settings.Default.SettingChanging += AppSettingChanging;
             CookiesFileName.Text = Path.GetFileName(Settings.Default.CookiesFileName);
 
-            // Create cancellation token used for App.Shutdown
-            token = cancellationTokenSource.Token;
-            
             // Populate voices into VoiceComboBox
             foreach (var voice in synthesizer.GetInstalledVoices())
                 VoiceComboBox.Items.Add(voice.VoiceInfo.Name);
@@ -234,15 +230,8 @@ namespace TweetNotify
             synthesizer.Volume = Settings.Default.Volume;
 
             // Setup query timer
-            timer.Interval = TimeSpan.FromSeconds(Settings.Default.UpdateTime);
-
-            // We should stop timer during fetching accounts
-            timer.Tick += async (_, __) =>
-            {
-                timer.Stop();
-                await FetchAllFeedsAsync(accounts, false);
-                timer.Start();
-            };
+            timer.Interval = TimeSpan.FromSeconds(1);
+            timer.Tick += async (_, __) => { await ProcessNewTweetsAsync(accounts, false); };
 
             // Parse X/Twitter accounts
             accounts = ParseAccounts(Settings.Default.TwitterAccounts);
@@ -257,7 +246,6 @@ namespace TweetNotify
                     TwitterHandle = fullHandle,
                     NotificationMode = mode,
                 });
-                seenTweetIdsByUser[fullHandle] = new List<string>();
             }
             AccountsList.ItemsSource = displayList;
 
@@ -266,9 +254,6 @@ namespace TweetNotify
 
             // Setup Puppeteer
             await SetupPuppeteerAsync();
-
-            // Baseline fetch (to avoid notifications on old tweets)
-            await FetchAllFeedsAsync(accounts, true);
 
             // Start timer
             timer.Start();
@@ -335,8 +320,8 @@ namespace TweetNotify
                 LaunchOptions launchOptions = new LaunchOptions
                 {
                     Browser = SupportedBrowser.Chromium,
-                    //Timeout = 30000,
                     Headless = true,
+                    //Headless = false,
                     ExecutablePath = revisionInfo.GetExecutablePath(),
                     Args = new[] { "--no-sandbox" }
                 };
@@ -346,7 +331,6 @@ namespace TweetNotify
                 page = await browser.NewPageAsync();
 
                 // Set UserAgent and headers
-                //string userAgent = @"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; Googlebot/2.1; +http://www.google.com/bot.html) Chrome/W.X.Y.Z Safari/537.36";
                 string userAgent = @"Mozilla /5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.212 Safari/537.36";
                 await page.SetUserAgentAsync(userAgent);
                 var headers = new Dictionary<string, string> { { "Accept", "application/json, text/plain, */*" } };
@@ -355,6 +339,18 @@ namespace TweetNotify
                 // Set page cookies
                 var cookies = GetCookies(Settings.Default.CookiesFileName);
                 await page.SetCookieAsync(cookies);
+
+                // Navigate to X Pro desks page
+                var navigationTask = page.GoToAsync(Settings.Default.BaseUrl, new NavigationOptions
+                {
+                    WaitUntil = new[] { WaitUntilNavigation.Networkidle2 }
+                });
+
+                // Wait 10 seconds to load page
+                var timeoutTask = Task.Delay(10000);
+                var completedTask = await Task.WhenAny(navigationTask, timeoutTask);
+
+                seenTweet = await ParseTweetsFromHTML();
             }
             catch (Exception ex)
             {
@@ -364,63 +360,66 @@ namespace TweetNotify
         #endregion
 
         #region Puppeteer fetching & processing
+        private async Task<Dictionary<string, (string Name, string Handle, string Text)>> ParseTweetsFromHTML()
+        {
+            var content = await page.GetContentAsync();
 
-        private async Task FetchAllFeedsAsync(List<(string handle, string mode)> accounts, bool isBaseline)
+            var htmlDoc = new HtmlDocument();
+            htmlDoc.LoadHtml(content);
+
+            // Select all tweet containers based on identifiable structure
+            var tweetContainers = htmlDoc.DocumentNode.SelectNodes("//div[contains(@class, 'css-175oi2r')]");
+
+            var tweets = new Dictionary<string, (string Name, string Handle, string Text)>();
+
+            foreach (var container in tweetContainers)
+            {
+                // Extract user name
+                var nameNode = container.SelectSingleNode(".//div[@data-testid='User-Name']//span");
+                string name = nameNode?.InnerText ?? string.Empty;
+
+                // Extract handle
+                var handleNode = container.SelectSingleNode(".//div[@data-testid='User-Name']//span[contains(text(), '@')]");
+                string handle = handleNode?.InnerText ?? string.Empty;
+
+                // Extract tweet text
+                var textNode = container.SelectSingleNode(".//div[@data-testid='tweetText']//span");
+                string text = textNode?.InnerText ?? string.Empty;
+
+                // Extract tweet URL
+                var urlNode = container.SelectSingleNode(".//a[contains(@href, '/status/')]");
+                string url = urlNode?.GetAttributeValue("href", string.Empty);
+
+                // Add to the list of tweets
+                if (!string.IsNullOrEmpty(url) && !string.IsNullOrEmpty(text) && !tweets.ContainsKey(url))
+                {
+                    tweets[url] = (name, handle, text);
+                }
+            }
+            return tweets;
+        }
+
+        private async Task ProcessNewTweetsAsync(List<(string account, string mode)> accounts, bool isBaseline)
         {
             if (page != null)
             {
-                var accountsClone = new List<(string handle, string mode)>(accounts);
-                foreach (var (handle, mode) in accountsClone)
+                var newTweets = await ParseTweetsFromHTML();
+                var uniqueKeys = newTweets.Keys.Except(seenTweet.Keys).Union(seenTweet.Keys.Except(newTweets.Keys));
+                var uniqueTweets = uniqueKeys.Select(key => newTweets.ContainsKey(key) ? (key, newTweets[key]) : (key, seenTweet[key])).ToList();
+                if (uniqueTweets.Count > 0)
                 {
-                    if (token.IsCancellationRequested) return;
+                    seenTweet = new Dictionary<string, (string Name, string Account, string Text)>(newTweets);
 
-                    var fullHandle = "@" + handle;
-                    if (mode.Equals("Disabled", StringComparison.OrdinalIgnoreCase)) continue;
-
-                    var url = Settings.Default.BaseUrl.Replace("{account}", handle);
-
-                    try
+                    foreach (var (account, mode) in accounts)
                     {
-                        // Go to https://syndication.twitter.com/srv/timeline-profile/{user_name}
-                        await page.GoToAsync(url);
-                        await page.WaitForNavigationAsync(new NavigationOptions() { Timeout = Settings.Default.Timeout * 1000 });
+                        var matchingTweets = uniqueTweets
+                            .Where(ut => string.Equals(ut.Item2.Item2, $"@{account}", StringComparison.OrdinalIgnoreCase)).ToList();
 
-                        var content = await page.GetContentAsync();
-
-                        if (!string.IsNullOrEmpty(content))
+                        // Show notifications for matching tweets
+                        foreach (var (_, (_, _, text)) in matchingTweets)
                         {
-                            var parsedTweets = ExtractTweetsFromPage(content);
-                            Debug.WriteLine($"Received {parsedTweets.Count} tweets from account {handle}");
-
-                            var newTweetIds = new List<string>();
-
-                            foreach (var tweet in parsedTweets)
-                            {
-                                if (token.IsCancellationRequested) return;
-
-                                var tweetId = tweet.EntryId;
-
-                                if (!string.IsNullOrEmpty(tweetId))
-                                {
-                                    if (seenTweetIdsByUser.ContainsKey(fullHandle))
-                                    {
-                                        if (!seenTweetIdsByUser[fullHandle].Contains(tweetId))
-                                        {
-                                            seenTweetIdsByUser[fullHandle].Add(tweetId);
-                                            if (!isBaseline)
-                                            {
-                                                newTweetIds.Add(tweetId);
-                                                ShowNewTweetNotification(fullHandle, tweet.FullText, mode);
-                                            }
-                                        }
-                                    }
-                                }
-                            }
+                            ShowNewTweetNotification(account, text, mode);
                         }
-                    }
-                    catch (Exception ex)
-                    {
-                        Debug.WriteLine($"Error fetching tweets: {ex.Message}");
                     }
                 }
             }
@@ -463,66 +462,6 @@ namespace TweetNotify
             return null;
         }
 
-        private List<TweetEntry> ExtractTweetsFromPage(string pageContent)
-        {
-            var tweets = new List<TweetEntry>();
-
-            var scriptId = "__NEXT_DATA__";
-            var marker = $"<script id=\"{scriptId}\" type=\"application/json\">";
-            var startIndex = pageContent.IndexOf(marker);
-
-            string jsonContent;
-
-            if (startIndex > 0)
-            {
-                startIndex += marker.Length;
-                var endIndex = pageContent.IndexOf("</script>", startIndex);
-                if (endIndex > 0)
-                {
-                    jsonContent = pageContent.Substring(startIndex, endIndex - startIndex);
-
-                    try
-                    {
-                        using (var doc = JsonDocument.Parse(jsonContent))
-                        {
-                            var timeline = doc.RootElement
-                                .GetProperty("props")
-                                .GetProperty("pageProps")
-                                .GetProperty("timeline")
-                                .GetProperty("entries");
-
-                            foreach (var entry in timeline.EnumerateArray())
-                            {
-                                if (entry.GetProperty("type").GetString() == "tweet")
-                                {
-                                    var tweetContent = entry.GetProperty("content").GetProperty("tweet");
-
-                                    var tweet = new TweetEntry
-                                    {
-                                        EntryId = entry.GetProperty("entry_id").GetString(),
-                                        CreatedAt = tweetContent.GetProperty("created_at").GetString(),
-                                        FullText = tweetContent.GetProperty("full_text").GetString(),
-                                        Permalink = tweetContent.GetProperty("permalink").GetString(),
-                                        FavoriteCount = tweetContent.GetProperty("favorite_count").GetInt32(),
-                                        RetweetCount = tweetContent.GetProperty("retweet_count").GetInt32(),
-                                        ReplyCount = tweetContent.GetProperty("reply_count").GetInt32(),
-                                        Lang = tweetContent.GetProperty("lang").GetString()
-                                    };
-
-                                    tweets.Add(tweet);
-                                }
-                            }
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        throw new InvalidOperationException("Failed to parse tweets from page content.", ex);
-                    }
-                }
-            }
-            return tweets;
-        }
-
         private async Task ClosePuppeteerAsync()
         {
             try
@@ -547,6 +486,7 @@ namespace TweetNotify
             }
             catch { }
         }
+        
         #endregion
     }
 

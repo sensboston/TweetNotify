@@ -77,36 +77,6 @@
                 </StackPanel>
 
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="5">
-                    <TextBlock Text="Update (sec):" Width="100" VerticalAlignment="Center"/>
-                    <ComboBox Width="220" SelectedValue="{Binding Source={x:Static properties:Settings.Default}, Path=UpdateTime, Mode=TwoWay}">
-                        <ComboBox.ItemsSource>
-                            <x:Array Type="sys:Int32" xmlns:sys="clr-namespace:System;assembly=mscorlib">
-                                <sys:Int32>1</sys:Int32>
-                                <sys:Int32>2</sys:Int32>
-                                <sys:Int32>3</sys:Int32>
-                                <sys:Int32>4</sys:Int32>
-                                <sys:Int32>5</sys:Int32>
-                                <sys:Int32>6</sys:Int32>
-                                <sys:Int32>7</sys:Int32>
-                                <sys:Int32>8</sys:Int32>
-                                <sys:Int32>9</sys:Int32>
-                                <sys:Int32>10</sys:Int32>
-                                <sys:Int32>15</sys:Int32>
-                                <sys:Int32>20</sys:Int32>
-                                <sys:Int32>25</sys:Int32>
-                                <sys:Int32>30</sys:Int32>
-                                <sys:Int32>35</sys:Int32>
-                                <sys:Int32>40</sys:Int32>
-                                <sys:Int32>45</sys:Int32>
-                                <sys:Int32>50</sys:Int32>
-                                <sys:Int32>55</sys:Int32>
-                                <sys:Int32>60</sys:Int32>
-                            </x:Array>
-                        </ComboBox.ItemsSource>
-                    </ComboBox>
-                </StackPanel>
-
-                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="5">
                     <TextBlock Text="Voice:" Width="100" VerticalAlignment="Center"/>
                     <ComboBox x:Name="VoiceComboBox" Width="220" SelectedValue="{Binding Source={x:Static properties:Settings.Default}, Path=Voice, Mode=TwoWay}"/>
                 </StackPanel>

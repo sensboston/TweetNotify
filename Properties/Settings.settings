@@ -2,14 +2,11 @@
 <SettingsFile xmlns="http://schemas.microsoft.com/VisualStudio/2004/01/settings" CurrentProfile="(Default)" GeneratedClassNamespace="TweetNotify.Properties" GeneratedClassName="Settings">
   <Profiles />
   <Settings>
-    <Setting Name="UpdateTime" Type="System.Int32" Scope="User">
-      <Value Profile="(Default)">10</Value>
-    </Setting>
     <Setting Name="TwitterAccounts" Type="System.String" Scope="User">
       <Value Profile="(Default)">sensboston:View/Sound</Value>
     </Setting>
     <Setting Name="BaseUrl" Type="System.String" Scope="User">
-      <Value Profile="(Default)">https://syndication.twitter.com/srv/timeline-profile/screen-name/{account}</Value>
+      <Value Profile="(Default)">https://pro.twitter.com/i/decks/1879009121325736117</Value>
     </Setting>
     <Setting Name="Voice" Type="System.String" Scope="User">
       <Value Profile="(Default)">Microsoft David Desktop</Value>
