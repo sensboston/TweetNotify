@@ -25,18 +25,6 @@ namespace TweetNotify.Properties {
         
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("10")]
-        public int UpdateTime {
-            get {
-                return ((int)(this["UpdateTime"]));
-            }
-            set {
-                this["UpdateTime"] = value;
-            }
-        }
-        
-        [global::System.Configuration.UserScopedSettingAttribute()]
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("sensboston:View/Sound")]
         public string TwitterAccounts {
             get {
@@ -49,7 +37,7 @@ namespace TweetNotify.Properties {
         
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("https://syndication.twitter.com/srv/timeline-profile/screen-name/{account}")]
+        [global::System.Configuration.DefaultSettingValueAttribute("https://pro.twitter.com/i/decks/1879009121325736117")]
         public string BaseUrl {
             get {
                 return ((string)(this["BaseUrl"]));
@@ -140,6 +128,18 @@ namespace TweetNotify.Properties {
             }
             set {
                 this["Timeout"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("css-175oi2r")]
+        public string Selector {
+            get {
+                return ((string)(this["Selector"]));
+            }
+            set {
+                this["Selector"] = value;
             }
         }
     }
