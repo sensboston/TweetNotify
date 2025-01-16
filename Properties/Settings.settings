@@ -32,5 +32,8 @@
     <Setting Name="Selector" Type="System.String" Scope="User">
       <Value Profile="(Default)">css-175oi2r</Value>
     </Setting>
+    <Setting Name="FirstRun" Type="System.Boolean" Scope="User">
+      <Value Profile="(Default)">True</Value>
+    </Setting>
   </Settings>
 </SettingsFile>

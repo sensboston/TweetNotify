@@ -35,11 +35,9 @@ namespace TweetNotify
 
         public MainWindow()
         {
-            Visibility = Visibility.Hidden;
-
-            // For the firts run, locate window in the screen center
-            if (Settings.Default.Left < 0 && Settings.Default.Top < 0)
-                WindowStartupLocation = WindowStartupLocation.CenterScreen;
+            // For the firts run, locate window in the screen center, otherwise hide it
+            if (Settings.Default.FirstRun) WindowStartupLocation = WindowStartupLocation.CenterScreen;
+            else Visibility = Visibility.Hidden;
 
             InitializeComponent();
             InitializeAsync();
@@ -210,9 +208,9 @@ namespace TweetNotify
         private async void InitializeAsync()
         {
             // Hide main window and set attributes
-            Hide();
-            Topmost= true;
-            WindowState = WindowState.Normal;
+            Topmost = true;
+            if (Settings.Default.FirstRun) Settings.Default.FirstRun = false;
+            else Hide();
 
             // Register settings changed handler
             Settings.Default.Save();

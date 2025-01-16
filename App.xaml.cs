@@ -11,13 +11,11 @@ namespace TweetNotify
     /// </summary>
     public partial class App : Application
     {
-        private static Mutex mutex = null;
-
         protected override void OnStartup(StartupEventArgs e)
         {
             const string appName = "TweetNotify";
             bool createdNew;
-            mutex = new Mutex(true, appName, out createdNew);
+            var mutex = new Mutex(true, appName, out createdNew);
             if (!createdNew)
             {
                 // If an instance is already running, shut down this new one.
