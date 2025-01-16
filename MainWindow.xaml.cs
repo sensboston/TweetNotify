@@ -42,7 +42,6 @@ namespace TweetNotify
                 WindowStartupLocation = WindowStartupLocation.CenterScreen;
 
             InitializeComponent();
-
             InitializeAsync();
         }
 
@@ -64,9 +63,11 @@ namespace TweetNotify
 
         private void AboutMenu_Click(object sender, RoutedEventArgs e)
         {
-
+            Topmost = false;
+            var aboutBox = new AboutBox();
+            aboutBox.ShowDialog();
+            Topmost = true;
         }
-
 
         /// <summary>
         /// Shutdown the app
