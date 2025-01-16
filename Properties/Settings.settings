@@ -29,5 +29,8 @@
     <Setting Name="Timeout" Type="System.Int32" Scope="User">
       <Value Profile="(Default)">3</Value>
     </Setting>
+    <Setting Name="Selector" Type="System.String" Scope="User">
+      <Value Profile="(Default)">css-175oi2r</Value>
+    </Setting>
   </Settings>
 </SettingsFile>

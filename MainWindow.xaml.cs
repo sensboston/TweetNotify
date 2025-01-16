@@ -57,14 +57,16 @@ namespace TweetNotify
         {
             if (e.ChangedButton == MouseButton.Left)
             {
-                if (Visibility == Visibility.Hidden)
-                {
-                    Show();
-                    Activate();
-                }
+                if (Visibility == Visibility.Hidden) Show();
                 else Hide();
             }
         }
+
+        private void AboutMenu_Click(object sender, RoutedEventArgs e)
+        {
+
+        }
+
 
         /// <summary>
         /// Shutdown the app
@@ -106,35 +108,6 @@ namespace TweetNotify
             catch { }
         }
 
-        /// <summary>
-        /// Add new account
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        private async void AccountsList_AddNewAccount(object sender, MouseButtonEventArgs e)
-        {
-            var dialog = new InputDialog("Enter X/Twitter Handle:", "Add new account");
-            if (dialog.ShowDialog() == true)
-            {
-                var handle = dialog.Result;
-                if (!string.IsNullOrWhiteSpace(handle))
-                {
-                    timer.Stop();
-
-                    accounts.Add((handle, "Disabled"));
-                    var displayList = AccountsList.ItemsSource as List<AccountDisplay>;
-                    displayList.Add(new AccountDisplay { TwitterHandle = $"@{handle}", NotificationMode = "Disabled" });
-                    AccountsList.ItemsSource = null;
-                    AccountsList.ItemsSource = displayList;
-                    SaveAccountsToSettings();
-
-                    // Refetch previous tweets
-                    await ProcessNewTweetsAsync(accounts, true);
-                    timer.Start();
-                }
-            }
-        }
-
         private void AccountModeComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (sender is ComboBox comboBox && comboBox.DataContext is AccountDisplay selectedAccount)
@@ -154,9 +127,33 @@ namespace TweetNotify
             }
         }
 
+        private async void AddAccount_Click(object sender, RoutedEventArgs e)
+        {
+            var dialog = new InputDialog("Enter X/Twitter Handle:", "Add new account");
+            if (dialog.ShowDialog() == true)
+            {
+                var handle = dialog.Result;
+                if (!string.IsNullOrWhiteSpace(handle))
+                {
+                    timer.Stop();
+
+                    accounts.Add((handle, "View"));
+                    var displayList = AccountsList.ItemsSource as List<AccountDisplay>;
+                    displayList.Add(new AccountDisplay { TwitterHandle = $"@{handle}", NotificationMode = "Disabled" });
+                    AccountsList.ItemsSource = null;
+                    AccountsList.ItemsSource = displayList;
+                    SaveAccountsToSettings();
+
+                    // Refetch previous tweets
+                    await ProcessNewTweetsAsync(accounts, true);
+                    timer.Start();
+                }
+            }
+        }
+
         private void DeleteAccount_Click(object sender, RoutedEventArgs e)
         {
-            if (AccountsList.SelectedItem is AccountDisplay selectedAccount)
+            if (sender is Button button && button.DataContext is AccountDisplay selectedAccount)
             {
                 accounts.RemoveAll(a => $"@{a.handle}" == selectedAccount.TwitterHandle);
 
@@ -211,8 +208,10 @@ namespace TweetNotify
 
         private async void InitializeAsync()
         {
-            // Hide main window
+            // Hide main window and set attributes
             Hide();
+            Topmost= true;
+            WindowState = WindowState.Normal;
 
             // Register settings changed handler
             Settings.Default.Save();
@@ -254,9 +253,6 @@ namespace TweetNotify
 
             // Setup Puppeteer
             await SetupPuppeteerAsync();
-
-            // Start timer
-            timer.Start();
         }
 
         private void AppSettingChanging(object sender, SettingChangingEventArgs e)
@@ -347,10 +343,13 @@ namespace TweetNotify
                 });
 
                 // Wait 10 seconds to load page
-                var timeoutTask = Task.Delay(10000);
+                var timeoutTask = Task.Delay(8000);
                 var completedTask = await Task.WhenAny(navigationTask, timeoutTask);
 
                 seenTweet = await ParseTweetsFromHTML();
+
+                // Start update timer
+                timer.Start();
             }
             catch (Exception ex)
             {
@@ -360,15 +359,32 @@ namespace TweetNotify
         #endregion
 
         #region Puppeteer fetching & processing
-        private async Task<Dictionary<string, (string Name, string Handle, string Text)>> ParseTweetsFromHTML()
+        
+        private async Task<Dictionary<string, (string Name, string Account, string Text)>> ParseTweetsFromHTML()
         {
             var content = await page.GetContentAsync();
 
             var htmlDoc = new HtmlDocument();
             htmlDoc.LoadHtml(content);
 
+            var selector = Settings.Default.Selector;
+
+            // Try to detect new selector if changed
+            var divs = htmlDoc.DocumentNode.SelectNodes("//div");
+            if (divs != null)
+            {
+                var groupedAndSorted = divs
+                    .Where(div => div.Attributes["class"] != null)
+                    .Select(div => div.Attributes["class"].Value)
+                    .GroupBy(className => className.Split(' ')[0])
+                    .OrderByDescending(group => group.Count());
+
+                var mostFrequentClass = groupedAndSorted.FirstOrDefault();
+                if (mostFrequentClass != null) selector = mostFrequentClass.Key;
+            }
+
             // Select all tweet containers based on identifiable structure
-            var tweetContainers = htmlDoc.DocumentNode.SelectNodes("//div[contains(@class, 'css-175oi2r')]");
+            var tweetContainers = htmlDoc.DocumentNode.SelectNodes($"//div[contains(@class, '{selector}')]");
 
             var tweets = new Dictionary<string, (string Name, string Handle, string Text)>();
 
@@ -403,17 +419,28 @@ namespace TweetNotify
         {
             if (page != null)
             {
+                // Parse the latest tweets
                 var newTweets = await ParseTweetsFromHTML();
-                var uniqueKeys = newTweets.Keys.Except(seenTweet.Keys).Union(seenTweet.Keys.Except(newTweets.Keys));
-                var uniqueTweets = uniqueKeys.Select(key => newTweets.ContainsKey(key) ? (key, newTweets[key]) : (key, seenTweet[key])).ToList();
-                if (uniqueTweets.Count > 0)
-                {
-                    seenTweet = new Dictionary<string, (string Name, string Account, string Text)>(newTweets);
 
+                // Find tweets that are in newTweets but not in seenTweet
+                var trulyNewTweets = newTweets.Keys.Except(seenTweet.Keys)
+                    .Select(key => (key, newTweets[key]))
+                    .ToList();
+
+                // If there are new tweets, process them
+                if (trulyNewTweets.Count > 0)
+                {
+                    // Update seenTweet with all new tweets
+                    foreach (var kvp in newTweets)
+                        seenTweet[kvp.Key] = kvp.Value;
+
+                    // Iterate through each account in `accounts`
                     foreach (var (account, mode) in accounts)
                     {
-                        var matchingTweets = uniqueTweets
-                            .Where(ut => string.Equals(ut.Item2.Item2, $"@{account}", StringComparison.OrdinalIgnoreCase)).ToList();
+                        // Filter trulyNewTweets for tweets matching the current account
+                        var matchingTweets = trulyNewTweets
+                            .Where(ut => string.Equals(ut.Item2.Account, $"@{account}", StringComparison.OrdinalIgnoreCase))
+                            .ToList();
 
                         // Show notifications for matching tweets
                         foreach (var (_, (_, _, text)) in matchingTweets)
@@ -486,8 +513,9 @@ namespace TweetNotify
             }
             catch { }
         }
-        
+
         #endregion
+
     }
 
     #region Data classes

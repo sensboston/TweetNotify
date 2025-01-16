@@ -4,15 +4,23 @@
         xmlns:icon="https://github.com/nullsoftware/TrayIcon"
         xmlns:properties="clr-namespace:TweetNotify.Properties"
         xmlns:ui="http://schemas.modernwpf.com/2019"
+        xmlns:sys="clr-namespace:System;assembly=mscorlib"
         ui:WindowHelper.UseModernWindowStyle="True"
         ShowInTaskbar="False"
+        WindowState="Minimized"
         WindowStyle="SingleBorderWindow"
         ResizeMode="NoResize"
         Title="Tweet Notify" 
-        Height="600" Width="390"
+        Height="400" Width="360"
         Left="{Binding Source={x:Static properties:Settings.Default}, Path=Left, Mode=TwoWay}"
         Top="{Binding Source={x:Static properties:Settings.Default}, Path=Top, Mode=TwoWay}"
         Icon="/App.ico">
+
+    <Window.Resources>
+        <Thickness x:Key="MarginThickness">10 10</Thickness>
+        <sys:Double x:Key="LabelWidth">80</sys:Double>
+        <sys:Double x:Key="SettingWidth">236</sys:Double>
+    </Window.Resources>
 
     <icon:TrayIconHandlers.TrayIcons>
         <icon:TrayIcon x:Name="trayIcon" Title="Tweet Notify"
@@ -21,79 +29,87 @@
                        NotificationServiceMemberPath="NotificationService">
             <icon:TrayIcon.ContextMenu>
                 <ContextMenu>
+                    <MenuItem Header="A_bout" Click="AboutMenu_Click" />
+                    <Separator Height="10"/>
                     <MenuItem Header="E_xit" Click="TrayIcon_Exit" />
                 </ContextMenu>
             </icon:TrayIcon.ContextMenu>
         </icon:TrayIcon>
     </icon:TrayIconHandlers.TrayIcons>
 
-    <Grid Margin="10">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="1.2*"/>
-            <RowDefinition Height="1*"/>
-        </Grid.RowDefinitions>
+    <Grid>
+        <TabControl>
+            <TabItem Header="Accounts">
+                <Grid Margin="{StaticResource MarginThickness}">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    
+                    <ListView x:Name="AccountsList" Margin="0 10">
+                        <ListView.ItemTemplate>
+                            <DataTemplate>
+                                <Grid Margin="0 5">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="20"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="12"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
 
-        <Border Grid.Row="0" BorderBrush="{DynamicResource SystemControlPageTextBaseHighBrush}" CornerRadius="10" BorderThickness="1" Padding="5" Margin="5">
-            <ListView x:Name="AccountsList" FontSize="18" Margin="0 5 0 0" MouseDoubleClick="AccountsList_AddNewAccount" ToolTip="Double click to add new account">
-                <ListView.ItemTemplate>
-                    <DataTemplate>
-                        <Border BorderThickness="0,0,0,1" BorderBrush="#444">
-                            <Grid Margin="0 5">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="30"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="30"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Width="130" VerticalAlignment="Center" Text="{Binding TwitterHandle}" FontWeight="Bold" />
 
-                                <TextBlock Grid.Column="0" Width="110" VerticalAlignment="Center" Text="{Binding TwitterHandle}" FontWeight="Bold" />
+                                    <ComboBox Grid.Column="2" Width="120" HorizontalAlignment="Right" SelectedValuePath="Content" SelectedValue="{Binding NotificationMode, Mode=TwoWay}" SelectionChanged="AccountModeComboBox_SelectionChanged">
+                                        <ComboBoxItem Content="View"/>
+                                        <ComboBoxItem Content="Sound"/>
+                                        <ComboBoxItem Content="View/Sound"/>
+                                    </ComboBox>
 
-                                <ComboBox Grid.Column="2" Width="120" HorizontalAlignment="Right" SelectedValuePath="Content" SelectedValue="{Binding NotificationMode, Mode=TwoWay}" SelectionChanged="AccountModeComboBox_SelectionChanged">
-                                    <ComboBoxItem Content="View"/>
-                                    <ComboBoxItem Content="Sound"/>
-                                    <ComboBoxItem Content="View/Sound"/>
-                                    <ComboBoxItem Content="Disabled"/>
-                                </ComboBox>
+                                    <Button Grid.Column="4" Width="30" Height="30" FontFamily="Segoe MDL2 Assets" FontSize="14" Content="&#xE107;" Click="DeleteAccount_Click"/>
+                                </Grid>
+                            </DataTemplate>
+                        </ListView.ItemTemplate>
+                    </ListView>
 
-                                <Button Grid.Column="4" Width="30" Height="30" Style="{DynamicResource AccentButtonStyle}" FontFamily="Segoe MDL2 Assets" FontSize="14" Content="&#xE107;" Click="DeleteAccount_Click"/>
-                            </Grid>
-                        </Border>
-                    </DataTemplate>
-                </ListView.ItemTemplate>
-            </ListView>
-        </Border>
-        <TextBlock Grid.Row="0" Background="{DynamicResource SystemControlPageBackgroundAltHighBrush}" Foreground="{DynamicResource SystemControlPageTextBaseHighBrush}" Width="70" Height="20" VerticalAlignment="Top" HorizontalAlignment="Left" Text="  Accounts" Margin="20 -12" FontSize="14"/>
+                    <Button Grid.Row="1" VerticalAlignment="Bottom" HorizontalAlignment="Stretch" Content="Add new account" Style="{DynamicResource AccentButtonStyle}" Click="AddAccount_Click"/>
+                </Grid>
+            </TabItem>
 
-        <Border Grid.Row="1" BorderBrush="{DynamicResource SystemControlPageTextBaseHighBrush}" CornerRadius="10" BorderThickness="1" Padding="5" Margin="5 10 5 0 ">
-            <StackPanel Margin="5 10">
+            <TabItem Header="Settings">
+                <StackPanel Margin="{StaticResource MarginThickness}">
 
-                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="5">
-                    <TextBlock Text="Theme:" Width="100" VerticalAlignment="Center"/>
-                    <ComboBox Width="220" SelectedValuePath="Content" SelectedValue="{Binding Source={x:Static properties:Settings.Default}, Path=Theme, Mode=TwoWay}">
-                        <ComboBoxItem Content="Dark"/>
-                        <ComboBoxItem Content="Light"/>
-                    </ComboBox>
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="{StaticResource MarginThickness}">
+                        <TextBlock Text="Theme:" Width="{StaticResource LabelWidth}" VerticalAlignment="Center"/>
+                        <ComboBox Width="{StaticResource SettingWidth}" SelectedValuePath="Content" SelectedValue="{Binding Source={x:Static properties:Settings.Default}, Path=Theme, Mode=TwoWay}">
+                            <ComboBoxItem Content="Dark"/>
+                            <ComboBoxItem Content="Light"/>
+                        </ComboBox>
+                    </StackPanel>
+
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="{StaticResource MarginThickness}">
+                        <TextBlock Text="Voice:" Width="{StaticResource LabelWidth}" VerticalAlignment="Center"/>
+                        <ComboBox x:Name="VoiceComboBox" Width="{StaticResource SettingWidth}" SelectedValue="{Binding Source={x:Static properties:Settings.Default}, Path=Voice, Mode=TwoWay}"/>
+                    </StackPanel>
+
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="{StaticResource MarginThickness}">
+                        <TextBlock Text="Volume:" Width="{StaticResource LabelWidth}" VerticalAlignment="Center"/>
+                        <Slider Width="{StaticResource SettingWidth}" Minimum="0" Maximum="100" Value="{Binding Source={x:Static properties:Settings.Default}, Path=Volume, Mode=TwoWay}" TickFrequency="10" IsSnapToTickEnabled="True"/>
+                    </StackPanel>
+
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="{StaticResource MarginThickness}">
+                        <TextBlock Text="Base URL:" Width="{StaticResource LabelWidth}" VerticalAlignment="Center"/>
+                        <TextBox Text="{Binding Source={x:Static properties:Settings.Default}, Path=BaseUrl, Mode=TwoWay}" Width="{StaticResource SettingWidth}" VerticalAlignment="Center" />
+                    </StackPanel>
+
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="{StaticResource MarginThickness}">
+                        <TextBlock Text="Cookies:" Width="{StaticResource LabelWidth}" VerticalAlignment="Center"/>
+                        <TextBox x:Name="CookiesFileName" Text="" IsReadOnly="True" Margin="0 0 10 0" Width="130" VerticalAlignment="Center" />
+                        <Button Content="Select file" Width="100" Margin="6 0 0 0" Height="30" HorizontalAlignment="Right" Style="{DynamicResource AccentButtonStyle}" Click="BrowseCookieFile_Click" />
+                    </StackPanel>
                 </StackPanel>
+            </TabItem>
 
-                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="5">
-                    <TextBlock Text="Voice:" Width="100" VerticalAlignment="Center"/>
-                    <ComboBox x:Name="VoiceComboBox" Width="220" SelectedValue="{Binding Source={x:Static properties:Settings.Default}, Path=Voice, Mode=TwoWay}"/>
-                </StackPanel>
-
-                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="5">
-                    <TextBlock Text="Volume:" Width="100" VerticalAlignment="Center"/>
-                    <Slider Width="220" Minimum="0" Maximum="100" Value="{Binding Source={x:Static properties:Settings.Default}, Path=Volume, Mode=TwoWay}" TickFrequency="10" IsSnapToTickEnabled="True"/>
-                </StackPanel>
-
-                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="5">
-                    <TextBlock Text="Cookie File:" Width="100" VerticalAlignment="Center"/>
-                    <TextBlock x:Name="CookiesFileName" Width="120" VerticalAlignment="Center" />
-                    <Button Content="Select File" Width="100" Height="30" HorizontalAlignment="Right" Style="{DynamicResource AccentButtonStyle}" Click="BrowseCookieFile_Click" />
-                </StackPanel>
-            </StackPanel>
-        </Border>
-        <TextBlock Grid.Row="1" Background="{DynamicResource SystemControlPageBackgroundAltHighBrush}" Foreground="{DynamicResource SystemControlPageTextBaseHighBrush}" Width="64" Height="20" VerticalAlignment="Top" HorizontalAlignment="Left" Text="  Settings" Margin="20 0" FontSize="14"/>
-
+        </TabControl>
     </Grid>
 </Window>

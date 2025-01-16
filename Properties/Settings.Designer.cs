@@ -130,5 +130,17 @@ namespace TweetNotify.Properties {
                 this["Timeout"] = value;
             }
         }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("css-175oi2r")]
+        public string Selector {
+            get {
+                return ((string)(this["Selector"]));
+            }
+            set {
+                this["Selector"] = value;
+            }
+        }
     }
 }
