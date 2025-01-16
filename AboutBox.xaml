@@ -4,13 +4,14 @@
         xmlns:ui="http://schemas.modernwpf.com/2019"
         ui:WindowHelper.UseModernWindowStyle="True"
         Width="400"
-        Height="220"
+        Height="240"
         Icon="/App.ico"
+        Topmost="True"
         WindowStartupLocation="CenterScreen"
         WindowStyle="SingleBorderWindow"
         ResizeMode="NoResize">
     
-    <Grid Margin="10">
+    <Grid Margin="5 0">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
@@ -21,9 +22,9 @@
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
             
-            <Image Margin="10" Source="App.ico" Width="64" Height="64" VerticalAlignment="Top"/>
+            <Image Margin="10 -10 0 0" Source="App.ico" Width="80" Height="80" VerticalAlignment="Top"/>
 
-            <Grid Grid.Column="1" Margin="0 -4 0 0">
+            <Grid Grid.Column="1" Margin="-50 -6 0 0">
                 <Grid.RowDefinitions>
                     <RowDefinition />
                     <RowDefinition />
@@ -40,13 +41,14 @@
             </Grid>
         </Grid>
         
-        <Grid Grid.Row="1" Margin="0,20,0,0">
-
-            <TextBlock VerticalAlignment="Center" HorizontalAlignment="Center">
+        <Grid Grid.Row="1" Margin="0,0,0,0">
+            <TextBlock VerticalAlignment="Top" HorizontalAlignment="Center" Margin="0 30">
                 <Hyperlink x:Name="WebsiteHyperlink" NavigateUri="file:///%Temp%/README_Temp.html" RequestNavigate="SetupInstructions_RequestNavigate">
                     Please click here to see setup instructions
                 </Hyperlink>
             </TextBlock>
         </Grid>
+
+        <Button Grid.Row="1" Width="80" Margin="10"  VerticalAlignment="Bottom" HorizontalAlignment="Right" Content="OK" Style="{DynamicResource AccentButtonStyle}" IsDefault="True" IsCancel="True" />
     </Grid>
 </Window>

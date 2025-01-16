@@ -163,6 +163,9 @@
     <PackageReference Include="HtmlAgilityPack">
       <Version>1.11.72</Version>
     </PackageReference>
+    <PackageReference Include="MarkdownSharp">
+      <Version>2.0.5</Version>
+    </PackageReference>
     <PackageReference Include="Microsoft.Extensions.Logging">
       <Version>9.0.0</Version>
     </PackageReference>
