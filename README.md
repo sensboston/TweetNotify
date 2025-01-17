@@ -9,7 +9,7 @@
 You must have a paid account on X to be able to create [X Pro Desk](https://pro.twitter.com/i/decks).
 
 ### Installation
-This application is completely portable so it doesn't require installation. Just create a new folder (on the desktop or at any accessible folder on your progile), name it "TweetNotify" or whatever you like, download and move there the executable file **TweetNotify.exe**.
+This application is completely portable so it doesn't require installation. Just create a new folder (on the desktop or at any accessible folder on your profile), name it "TweetNotify" or whatever you like, download and move there the executable file **TweetNotify.exe**.
 
 The application saves the settings to the **TweetNotify.config** file in the launch folder. The **ChromiumBrowser** folder (used for headless web scraping), will also be created there.
 Checked setting **Start with Windows** will make a change in the registry at **SOFTWARE\Microsoft\Windows\CurrentVersion\Run**
