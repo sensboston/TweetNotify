@@ -3,10 +3,10 @@
   <Profiles />
   <Settings>
     <Setting Name="TwitterAccounts" Type="System.String" Scope="User">
-      <Value Profile="(Default)">sensboston:View/Sound</Value>
+      <Value Profile="(Default)" />
     </Setting>
     <Setting Name="BaseUrl" Type="System.String" Scope="User">
-      <Value Profile="(Default)">https://pro.twitter.com/i/decks/1879009121325736117</Value>
+      <Value Profile="(Default)" />
     </Setting>
     <Setting Name="Voice" Type="System.String" Scope="User">
       <Value Profile="(Default)">Microsoft David Desktop</Value>
@@ -15,7 +15,7 @@
       <Value Profile="(Default)">100</Value>
     </Setting>
     <Setting Name="CookiesFileName" Type="System.String" Scope="User">
-      <Value Profile="(Default)">C:\Users\Sergey\Downloads\download.json</Value>
+      <Value Profile="(Default)" />
     </Setting>
     <Setting Name="Theme" Type="System.String" Scope="User">
       <Value Profile="(Default)">Dark</Value>
@@ -26,14 +26,14 @@
     <Setting Name="Top" Type="System.Int32" Scope="User">
       <Value Profile="(Default)">-1</Value>
     </Setting>
-    <Setting Name="Timeout" Type="System.Int32" Scope="User">
-      <Value Profile="(Default)">3</Value>
-    </Setting>
     <Setting Name="Selector" Type="System.String" Scope="User">
       <Value Profile="(Default)">css-175oi2r</Value>
     </Setting>
     <Setting Name="FirstRun" Type="System.Boolean" Scope="User">
       <Value Profile="(Default)">True</Value>
+    </Setting>
+    <Setting Name="StartWithWindows" Type="System.Boolean" Scope="User">
+      <Value Profile="(Default)">False</Value>
     </Setting>
   </Settings>
 </SettingsFile>

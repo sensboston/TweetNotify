@@ -5,6 +5,7 @@
         Title="Input" 
         Width="400" 
         Height="200"
+        Topmost="True"
         WindowStartupLocation="CenterScreen"
         ui:WindowHelper.UseModernWindowStyle="True"
         ResizeMode="NoResize">

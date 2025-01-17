@@ -25,7 +25,7 @@ namespace TweetNotify.Properties {
         
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("sensboston:View/Sound")]
+        [global::System.Configuration.DefaultSettingValueAttribute("")]
         public string TwitterAccounts {
             get {
                 return ((string)(this["TwitterAccounts"]));
@@ -37,7 +37,7 @@ namespace TweetNotify.Properties {
         
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("https://pro.twitter.com/i/decks/1879009121325736117")]
+        [global::System.Configuration.DefaultSettingValueAttribute("")]
         public string BaseUrl {
             get {
                 return ((string)(this["BaseUrl"]));
@@ -73,7 +73,7 @@ namespace TweetNotify.Properties {
         
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("C:\\Users\\Sergey\\Downloads\\download.json")]
+        [global::System.Configuration.DefaultSettingValueAttribute("")]
         public string CookiesFileName {
             get {
                 return ((string)(this["CookiesFileName"]));
@@ -121,18 +121,6 @@ namespace TweetNotify.Properties {
         
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("3")]
-        public int Timeout {
-            get {
-                return ((int)(this["Timeout"]));
-            }
-            set {
-                this["Timeout"] = value;
-            }
-        }
-        
-        [global::System.Configuration.UserScopedSettingAttribute()]
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("css-175oi2r")]
         public string Selector {
             get {
@@ -152,6 +140,18 @@ namespace TweetNotify.Properties {
             }
             set {
                 this["FirstRun"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("False")]
+        public bool StartWithWindows {
+            get {
+                return ((bool)(this["StartWithWindows"]));
+            }
+            set {
+                this["StartWithWindows"] = value;
             }
         }
     }

@@ -11,6 +11,8 @@ using System.ComponentModel;
 using System.Configuration;
 using System.Windows.Controls;
 using System.Diagnostics;
+using Microsoft.Win32;
+using System.Reflection;
 
 using Newtonsoft.Json;
 using NullSoftware.ToolKit;
@@ -36,8 +38,16 @@ namespace TweetNotify
         public MainWindow()
         {
             // For the firts run, locate window in the screen center, otherwise hide it
-            if (Settings.Default.FirstRun) WindowStartupLocation = WindowStartupLocation.CenterScreen;
-            else Visibility = Visibility.Hidden;
+            if (Settings.Default.FirstRun)
+            {
+                WindowStartupLocation = WindowStartupLocation.CenterScreen;
+                WindowState = WindowState.Normal;
+            }
+            else
+            {
+                WindowState = WindowState.Minimized;
+                Visibility = Visibility.Hidden;
+            }
 
             InitializeComponent();
             InitializeAsync();
@@ -126,7 +136,7 @@ namespace TweetNotify
             }
         }
 
-        private async void AddAccount_Click(object sender, RoutedEventArgs e)
+        private async void AddNewAccount_Click(object sender, RoutedEventArgs e)
         {
             var dialog = new InputDialog("Enter X/Twitter Handle:", "Add new account");
             if (dialog.ShowDialog() == true)
@@ -136,9 +146,9 @@ namespace TweetNotify
                 {
                     timer.Stop();
 
-                    accounts.Add((handle, "View"));
+                    accounts.Add((handle, "View/Sound"));
                     var displayList = AccountsList.ItemsSource as List<AccountDisplay>;
-                    displayList.Add(new AccountDisplay { TwitterHandle = $"@{handle}", NotificationMode = "Disabled" });
+                    displayList.Add(new AccountDisplay { TwitterHandle = $"@{handle}", NotificationMode = "View/Sound" });
                     AccountsList.ItemsSource = null;
                     AccountsList.ItemsSource = displayList;
                     SaveAccountsToSettings();
@@ -254,10 +264,14 @@ namespace TweetNotify
             await SetupPuppeteerAsync();
         }
 
-        private void AppSettingChanging(object sender, SettingChangingEventArgs e)
+        private async void AppSettingChanging(object sender, SettingChangingEventArgs e)
         {
             switch (e.SettingName)
             {
+                case "BaseUrl":
+                    await NavigatePuppeteerAsync();
+                    break;
+
                 case "UpdateTime":
                     timer.Interval = TimeSpan.FromSeconds((int)e.NewValue);
                     break;
@@ -276,9 +290,38 @@ namespace TweetNotify
 
                 case "CookiesFileName":
                     CookiesFileName.Text = Path.GetFileName((string)e.NewValue);
+                    await NavigatePuppeteerAsync();
                     break;
+
+                case "StartWithWindows":
+                    ToggleStartWithWindows((bool) e.NewValue);
+                    break;
+
             }
             Settings.Default.Save();
+        }
+
+        private void ToggleStartWithWindows(bool doEnable)
+        {
+            var appName = "TweetNotify";
+            var startupFolderPath = Path.GetFullPath(Assembly.GetEntryAssembly().Location);
+
+            try
+            {
+                var registryKey = Registry.CurrentUser.OpenSubKey(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Run", true);
+                if (registryKey == null)
+                {
+                    registryKey = Registry.CurrentUser.CreateSubKey(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Run");
+                }
+
+                if (registryKey != null)
+                {
+                    if (doEnable) registryKey.SetValue(appName, startupFolderPath);
+                    else registryKey.DeleteValue(appName, false);
+                    registryKey.Close();
+                }
+            }
+            catch { }
         }
 
         private List<(string handle, string mode)> ParseAccounts(string raw)
@@ -331,34 +374,60 @@ namespace TweetNotify
                 var headers = new Dictionary<string, string> { { "Accept", "application/json, text/plain, */*" } };
                 await page.SetExtraHttpHeadersAsync(headers);
 
-                // Set page cookies
-                var cookies = GetCookies(Settings.Default.CookiesFileName);
-                await page.SetCookieAsync(cookies);
-
-                // Navigate to X Pro desks page
-                var navigationTask = page.GoToAsync(Settings.Default.BaseUrl, new NavigationOptions
-                {
-                    WaitUntil = new[] { WaitUntilNavigation.Networkidle2 }
-                });
-
-                // Wait 10 seconds to load page
-                var timeoutTask = Task.Delay(8000);
-                var completedTask = await Task.WhenAny(navigationTask, timeoutTask);
-
-                seenTweet = await ParseTweetsFromHTML();
-
-                // Start update timer
-                timer.Start();
+                await NavigatePuppeteerAsync();
             }
             catch (Exception ex)
             {
                 Debug.WriteLine("Error setting up Puppeteer: " + ex.Message);
             }
         }
+
+        private async Task<bool> NavigatePuppeteerAsync()
+        {
+            // Stop timer first
+            timer.Stop();
+
+            if (!string.IsNullOrEmpty(Settings.Default.BaseUrl) && IsValidUrl(Settings.Default.BaseUrl))
+            {
+                try
+                {
+                    // Set page cookies
+                    var cookies = GetCookies(Settings.Default.CookiesFileName);
+                    await page.SetCookieAsync(cookies);
+
+                    // Navigate to X Pro desks page
+                    var navigationTask = page.GoToAsync(Settings.Default.BaseUrl, new NavigationOptions
+                    {
+                        WaitUntil = new[] { WaitUntilNavigation.Networkidle2 }
+                    });
+
+                    // Wait 10 seconds to load page
+                    var timeoutTask = Task.Delay(8000);
+                    var completedTask = await Task.WhenAny(navigationTask, timeoutTask);
+
+                    seenTweet = await ParseTweetsFromHTML();
+
+                    // Start update timer
+                    timer.Start();
+                    return true;
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine("Navigation error: " + ex.Message);
+                    return false;
+                }
+            }
+            return false;
+        }
+
+        private bool IsValidUrl(string url)
+        {
+            return Uri.TryCreate(url, UriKind.Absolute, out Uri uri) && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
+        }
         #endregion
 
         #region Puppeteer fetching & processing
-        
+
         private async Task<Dictionary<string, (string Name, string Account, string Text)>> ParseTweetsFromHTML()
         {
             var content = await page.GetContentAsync();
