@@ -11,15 +11,16 @@
         WindowStyle="SingleBorderWindow"
         ResizeMode="NoResize"
         Title="Tweet Notify" 
-        Height="400" Width="360"
+        Height="460" Width="370"
         Left="{Binding Source={x:Static properties:Settings.Default}, Path=Left, Mode=TwoWay}"
         Top="{Binding Source={x:Static properties:Settings.Default}, Path=Top, Mode=TwoWay}"
         Icon="/App.ico">
 
     <Window.Resources>
         <Thickness x:Key="MarginThickness">10 10</Thickness>
-        <sys:Double x:Key="LabelWidth">80</sys:Double>
-        <sys:Double x:Key="SettingWidth">236</sys:Double>
+        <sys:Double x:Key="LabelWidth">90</sys:Double>
+        <sys:Double x:Key="SettingWidth">238</sys:Double>
+        <sys:Double x:Key="SliderWidth">210</sys:Double>
     </Window.Resources>
 
     <icon:TrayIconHandlers.TrayIcons>
@@ -54,7 +55,7 @@
                                         <ColumnDefinition Width="Auto"/>
                                         <ColumnDefinition Width="20"/>
                                         <ColumnDefinition Width="Auto"/>
-                                        <ColumnDefinition Width="12"/>
+                                        <ColumnDefinition Width="24"/>
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
 
@@ -85,6 +86,12 @@
                     </StackPanel>
 
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="{StaticResource MarginThickness}">
+                        <TextBlock Text="Update (sec):" Width="{StaticResource LabelWidth}" VerticalAlignment="Center"/>
+                        <Slider Width="{StaticResource SliderWidth}" Minimum="1" Maximum="10" Value="{Binding Source={x:Static properties:Settings.Default}, Path=Interval, Mode=TwoWay}" TickFrequency="1" IsSnapToTickEnabled="True"/>
+                        <TextBlock TextAlignment="Right" Width="16" Margin="10 0 0 0" Text="{Binding Source={x:Static properties:Settings.Default}, Path=Interval, Mode=OneWay}" VerticalAlignment="Center"/>
+                    </StackPanel>
+
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="{StaticResource MarginThickness}">
                         <TextBlock Text="Theme:" Width="{StaticResource LabelWidth}" VerticalAlignment="Center"/>
                         <ComboBox Width="{StaticResource SettingWidth}" SelectedValuePath="Content" SelectedValue="{Binding Source={x:Static properties:Settings.Default}, Path=Theme, Mode=TwoWay}">
                             <ComboBoxItem Content="Dark"/>
@@ -99,7 +106,8 @@
 
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="{StaticResource MarginThickness}">
                         <TextBlock Text="Volume:" Width="{StaticResource LabelWidth}" VerticalAlignment="Center"/>
-                        <Slider Width="{StaticResource SettingWidth}" Minimum="0" Maximum="100" Value="{Binding Source={x:Static properties:Settings.Default}, Path=Volume, Mode=TwoWay}" TickFrequency="10" IsSnapToTickEnabled="True"/>
+                        <Slider Width="{StaticResource SliderWidth}" Minimum="0" Maximum="100" Value="{Binding Source={x:Static properties:Settings.Default}, Path=Volume, Mode=TwoWay}" TickFrequency="1" IsSnapToTickEnabled="True"/>
+                        <TextBlock TextAlignment="Right" Width="24" Margin="5 0 0 0" Text="{Binding Source={x:Static properties:Settings.Default}, Path=Volume, Mode=OneWay}" VerticalAlignment="Center"/>
                     </StackPanel>
 
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="{StaticResource MarginThickness}">

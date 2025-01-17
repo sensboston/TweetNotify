@@ -227,6 +227,10 @@ namespace TweetNotify
             Settings.Default.SettingChanging += AppSettingChanging;
             CookiesFileName.Text = Path.GetFileName(Settings.Default.CookiesFileName);
 
+            // Set timer handler
+            timer.Interval = TimeSpan.FromSeconds(Settings.Default.Interval);
+            timer.Tick += async (_, __) => { await ProcessNewTweetsAsync(accounts, false); };
+
             // Populate voices into VoiceComboBox
             foreach (var voice in synthesizer.GetInstalledVoices())
                 VoiceComboBox.Items.Add(voice.VoiceInfo.Name);
@@ -236,10 +240,6 @@ namespace TweetNotify
             synthesizer.SetOutputToDefaultAudioDevice();
             synthesizer.SelectVoice(Settings.Default.Voice);
             synthesizer.Volume = Settings.Default.Volume;
-
-            // Setup query timer
-            timer.Interval = TimeSpan.FromSeconds(1);
-            timer.Tick += async (_, __) => { await ProcessNewTweetsAsync(accounts, false); };
 
             // Parse X/Twitter accounts
             accounts = ParseAccounts(Settings.Default.TwitterAccounts);
@@ -491,16 +491,13 @@ namespace TweetNotify
                 var newTweets = await ParseTweetsFromHTML();
 
                 // Find tweets that are in newTweets but not in seenTweet
-                var trulyNewTweets = newTweets.Keys.Except(seenTweet.Keys)
-                    .Select(key => (key, newTweets[key]))
-                    .ToList();
+                var trulyNewTweets = newTweets.Keys.Except(seenTweet.Keys).Select(key => (key, newTweets[key])).ToList();
 
                 // If there are new tweets, process them
                 if (trulyNewTweets.Count > 0)
                 {
                     // Update seenTweet with all new tweets
-                    foreach (var kvp in newTweets)
-                        seenTweet[kvp.Key] = kvp.Value;
+                    foreach (var kvp in newTweets) seenTweet[kvp.Key] = kvp.Value;
 
                     // Iterate through each account in `accounts`
                     foreach (var (account, mode) in accounts)
