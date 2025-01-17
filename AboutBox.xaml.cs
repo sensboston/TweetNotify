@@ -41,6 +41,11 @@ namespace TweetNotify
             // Convert GitHub markdown to html
             var markdown = new Markdown();
             string htmlContent = head + css + markdown.Transform(markdownText) + close;
+
+            // Fix images urls
+            htmlContent = htmlContent.Replace("https://github.com/user-attachments/assets/8d4230d6-8344-431f-8084-1fada38c8441", "https://senssoft.com/tn1.png");
+            htmlContent = htmlContent.Replace("https://github.com/user-attachments/assets/d995d22d-e63d-4383-971c-a9acd01d59a4", "https://senssoft.com/tn2.png");
+
             string tempFile = Path.Combine(Path.GetTempPath(), "README_Temp.html");
             File.WriteAllText(tempFile, htmlContent, Encoding.UTF8);
 
