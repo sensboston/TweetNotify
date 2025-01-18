@@ -1,7 +1,11 @@
-﻿using System.Threading;
+﻿using System.Diagnostics;
+using System;
+using System.Threading;
 using System.Windows;
 using Bluegrams.Application;
+using Microsoft.Toolkit.Uwp.Notifications;
 using ModernWpf;
+
 using TweetNotify.Properties;
 
 namespace TweetNotify
@@ -22,6 +26,9 @@ namespace TweetNotify
                 Current.Shutdown();
                 return;
             }
+
+            // Register app for the toast notifications
+            //ToastNotifierHelper.RegisterAppForNotifications();
 
             // Setup portable settings provider
             PortableSettingsProvider.SettingsFileName = "TweetNotify.config";

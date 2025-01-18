@@ -166,5 +166,17 @@ namespace TweetNotify.Properties {
                 this["Interval"] = value;
             }
         }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("True")]
+        public bool Headless {
+            get {
+                return ((bool)(this["Headless"]));
+            }
+            set {
+                this["Headless"] = value;
+            }
+        }
     }
 }

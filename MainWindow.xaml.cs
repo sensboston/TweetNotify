@@ -15,7 +15,6 @@ using Microsoft.Win32;
 using System.Reflection;
 
 using Newtonsoft.Json;
-using NullSoftware.ToolKit;
 using PuppeteerSharp;
 using ModernWpf;
 using HtmlAgilityPack;
@@ -194,23 +193,6 @@ namespace TweetNotify
                 Settings.Default.CookiesFileName = dialog.FileName;
         }
 
-        private void ShowNewTweetNotification(string account, string text, string mode)
-        {
-            Debug.WriteLine($"[NOTIFICATION] New tweet from {account} with mode {mode}: {text}");
-            account = account.Replace("@", "");
-
-            if (mode.IndexOf("View", StringComparison.OrdinalIgnoreCase) >= 0)
-            {
-                INotificationService notifyService = trayIcon;
-                notifyService.Notify($"{account} posted new tweet", $"{text}");
-            }
-
-            if (mode.IndexOf("Sound", StringComparison.OrdinalIgnoreCase) >= 0)
-            {
-                synthesizer.SpeakAsync($"{account} posted new tweet");
-            }
-        }
-
         #endregion
 
         #region Initialization
@@ -272,7 +254,7 @@ namespace TweetNotify
                     await NavigatePuppeteerAsync();
                     break;
 
-                case "UpdateTime":
+                case "Interval":
                     timer.Interval = TimeSpan.FromSeconds((int)e.NewValue);
                     break;
 
@@ -358,8 +340,7 @@ namespace TweetNotify
                 LaunchOptions launchOptions = new LaunchOptions
                 {
                     Browser = SupportedBrowser.Chromium,
-                    Headless = true,
-                    //Headless = false,
+                    Headless = Settings.Default.Headless,
                     ExecutablePath = revisionInfo.GetExecutablePath(),
                     Args = new[] { "--no-sandbox" }
                 };
@@ -395,17 +376,22 @@ namespace TweetNotify
                     var cookies = GetCookies(Settings.Default.CookiesFileName);
                     await page.SetCookieAsync(cookies);
 
-                    // Navigate to X Pro desks page
-                    var navigationTask = page.GoToAsync(Settings.Default.BaseUrl, new NavigationOptions
+                    // Sometime we need to retry navigation 'cause page not loaded from the first attempt
+                    for (int i = 0; i < 3; i++)
                     {
-                        WaitUntil = new[] { WaitUntilNavigation.Networkidle2 }
-                    });
+                        // Navigate to X Pro desks page
+                        var navigationTask = page.GoToAsync(Settings.Default.BaseUrl, new NavigationOptions
+                        {
+                            WaitUntil = new[] { WaitUntilNavigation.Networkidle2 }
+                        });
 
-                    // Wait 10 seconds to load page
-                    var timeoutTask = Task.Delay(8000);
-                    var completedTask = await Task.WhenAny(navigationTask, timeoutTask);
+                        // Wait 10 seconds to load page
+                        var timeoutTask = Task.Delay(8000);
+                        var completedTask = await Task.WhenAny(navigationTask, timeoutTask);
 
-                    seenTweet = await ParseTweetsFromHTML();
+                        seenTweet = await ParseTweetsFromHTML();
+                        if (seenTweet.Count > 0) break;
+                    }
 
                     // Start update timer
                     timer.Start();
@@ -424,6 +410,7 @@ namespace TweetNotify
         {
             return Uri.TryCreate(url, UriKind.Absolute, out Uri uri) && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
         }
+
         #endregion
 
         #region Puppeteer fetching & processing
@@ -473,6 +460,7 @@ namespace TweetNotify
                 // Extract tweet URL
                 var urlNode = container.SelectSingleNode(".//a[contains(@href, '/status/')]");
                 string url = urlNode?.GetAttributeValue("href", string.Empty);
+                if (!string.IsNullOrEmpty(url) && !url.StartsWith("http")) url = "https://twitter.com" + url;
 
                 // Add to the list of tweets
                 if (!string.IsNullOrEmpty(url) && !string.IsNullOrEmpty(text) && !tweets.ContainsKey(url))
@@ -482,6 +470,23 @@ namespace TweetNotify
             }
             return tweets;
         }
+
+        private void ShowNewTweetNotification(string account, string mode, TweetEntry tweet)
+        {
+            Debug.WriteLine($"[NOTIFICATION] New tweet from {account} with mode {mode}: {tweet.FullText}");
+            account = account.Replace("@", "");
+
+            if (mode.IndexOf("View", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                ToastNotifierHelper.ShowNotification($"@{account} posted new tweet", tweet.FullText, tweet.Permalink);
+            }
+
+            if (mode.IndexOf("Sound", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                synthesizer.SpeakAsync($"{account} posted new tweet");
+            }
+        }
+
 
         private async Task ProcessNewTweetsAsync(List<(string account, string mode)> accounts, bool isBaseline)
         {
@@ -508,9 +513,10 @@ namespace TweetNotify
                             .ToList();
 
                         // Show notifications for matching tweets
-                        foreach (var (_, (_, _, text)) in matchingTweets)
+                        foreach (var (url, (name, handle, text)) in matchingTweets)
                         {
-                            ShowNewTweetNotification(account, text, mode);
+                            var tweet = new TweetEntry { Permalink = url, FullText = text };
+                            ShowNewTweetNotification(account, mode, tweet);
                         }
                     }
                 }
@@ -580,7 +586,6 @@ namespace TweetNotify
         }
 
         #endregion
-
     }
 
     #region Data classes
