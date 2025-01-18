@@ -9,6 +9,12 @@ namespace TweetNotify
 {
     internal class ToastNotifierHelper
     {
+        /// <summary>
+        /// Shows Windows toast notification 
+        /// </summary>
+        /// <param name="title"></param>
+        /// <param name="text"></param>
+        /// <param name="permLink"></param>
         public static void ShowNotification(string title, string text, string permLink)
         {
             new ToastContentBuilder()
@@ -21,6 +27,10 @@ namespace TweetNotify
             ).Show();
         }
 
+        /// <summary>
+        /// Saves (if not exist) and returns App.png path from temp folder
+        /// </summary>
+        /// <returns></returns>
         private static string GetLogoPath()
         {
             var logoFilePath = Path.Combine(Path.GetTempPath(), "App.png");

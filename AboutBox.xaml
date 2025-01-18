@@ -22,7 +22,7 @@
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
             
-            <Image Margin="10 -10 0 0" Source="/App.png" Width="80" Height="80" VerticalAlignment="Top"/>
+            <Image Margin="10 -10 0 0" Source="/App.ico" Width="80" Height="80" VerticalAlignment="Top"/>
 
             <Grid Grid.Column="1" Margin="-50 -6 0 0">
                 <Grid.RowDefinitions>

@@ -130,7 +130,7 @@ namespace TweetNotify
                     accounts[accountIndex] = (accounts[accountIndex].handle, selectedMode);
                 }
 
-                // Save the updated accounts list to settings
+                // Save the updated accounts to the settings
                 SaveAccountsToSettings();
             }
         }
@@ -473,7 +473,7 @@ namespace TweetNotify
 
         private void ShowNewTweetNotification(string account, string mode, TweetEntry tweet)
         {
-            Debug.WriteLine($"[NOTIFICATION] New tweet from {account} with mode {mode}: {tweet.FullText}");
+            Debug.WriteLine($"[NOTIFICATION] New tweet from {account} with mode {mode}: {tweet.FullText}, permalink: {tweet.Permalink}");
             account = account.Replace("@", "");
 
             if (mode.IndexOf("View", StringComparison.OrdinalIgnoreCase) >= 0)
