@@ -478,7 +478,7 @@ namespace TweetNotify
 
             if (mode.IndexOf("View", StringComparison.OrdinalIgnoreCase) >= 0)
             {
-                ToastNotifierHelper.ShowNotification($"@{account} posted new tweet", tweet.FullText, tweet.Permalink);
+                ToastNotifierHelper.ShowNotification($"@{account} posted new tweet", System.Net.WebUtility.HtmlDecode(tweet.FullText), tweet.Permalink);
             }
 
             if (mode.IndexOf("Sound", StringComparison.OrdinalIgnoreCase) >= 0)
